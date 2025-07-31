@@ -1,22 +1,20 @@
 services:
   mediamtx:
     build:
-      context: mediamtx
+      context: .
       dockerfile: docker/arm64.Dockerfile
-      platforms:
-        - linux/arm64
     container_name: mediamtx
     restart: unless-stopped
     volumes:
       - ./recordings:/recordings
-      - ./scripts:/scripts
+      - ./apps:/apps:ro
       - ./gps.txt:/gps.txt:ro
       - ./mediamtx.local.yaml:/mediamtx.yml:ro
     network_mode: host
 
   gps-simulator:
     build:
-      context: gps-simulator
+      context: apps/gps-simulator
       dockerfile: Dockerfile.gps-simulator
     container_name: gps-simulator
     restart: unless-stopped

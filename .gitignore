@@ -12,6 +12,8 @@
 /mediamtx.*.yml
 
 
+workspace/
+
 __pycache__/
 *.py[codz]
 *$py.class

@@ -6,3 +6,12 @@
 /internal/core/VERSION
 /internal/servers/hls/hls.min.js
 /internal/staticsources/rpicamera/mtxrpicam_*/
+
+/apps
+/docker-compose.yml
+/gps.txt
+/mediamtx.*.yaml
+/mediamtx.*.yml
+/recordings
+/docker
+/.github
