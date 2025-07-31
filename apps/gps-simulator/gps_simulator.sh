@@ -35,7 +35,10 @@ while true; do
     # GPS 데이터가 비어있지 않으면 출력 파일에 쓰기
     if [ -n "$gps_data" ]; then
         echo "$gps_data" > "$GPS_OUTPUT_FILE"
-        echo "[$current_line/$TOTAL_LINES] $gps_data"
+        # 100번에 한 번만 로그 출력
+        if [ $((current_line % 100)) -eq 0 ]; then
+            echo "[$current_line/$TOTAL_LINES] $gps_data"
+        fi
     fi
     
     # 다음 라인으로 이동
