@@ -23,6 +23,7 @@ import (
 	"github.com/bluenviron/mediamtx/internal/externalcmd"
 	"github.com/bluenviron/mediamtx/internal/logger"
 	"github.com/bluenviron/mediamtx/internal/metrics"
+	"github.com/bluenviron/mediamtx/internal/overlay"
 	"github.com/bluenviron/mediamtx/internal/playback"
 	"github.com/bluenviron/mediamtx/internal/pprof"
 	"github.com/bluenviron/mediamtx/internal/recordcleaner"
@@ -364,6 +365,23 @@ func (p *Core) createResources(initial bool) error {
 	if p.pathManager == nil {
 		rtpMaxPayloadSize := getRTPMaxPayloadSize(p.conf.UDPMaxPayloadSize, p.conf.RTSPEncryption)
 
+		// Create overlay configuration from global configuration
+		overlayConfig := &overlay.Config{
+			Enabled:           p.conf.OverlayEnabled,
+			DatabaseHost:      p.conf.OverlayDatabaseHost,
+			DatabasePort:      p.conf.OverlayDatabasePort,
+			DatabaseUser:      p.conf.OverlayDatabaseUser,
+			DatabasePassword:  p.conf.OverlayDatabasePassword,
+			DatabaseName:      p.conf.OverlayDatabaseName,
+			UpdateInterval:    time.Duration(p.conf.OverlayUpdateInterval),
+			FontPath:          p.conf.OverlayFontPath,
+			FontSize:          p.conf.OverlayFontSize,
+			TextColor:         p.conf.OverlayTextColor,
+			BackgroundColor:   p.conf.OverlayBackgroundColor,
+			Position:          p.conf.OverlayPosition,
+			MaxConnections:    p.conf.OverlayMaxConnections,
+		}
+
 		p.pathManager = &pathManager{
 			logLevel:          p.conf.LogLevel,
 			shipName:          p.conf.ShipName,
@@ -377,6 +395,7 @@ func (p *Core) createResources(initial bool) error {
 			externalCmdPool:   p.externalCmdPool,
 			metrics:           p.metrics,
 			parent:            p,
+			overlayConfig:     overlayConfig,
 		}
 		p.pathManager.initialize()
 	}

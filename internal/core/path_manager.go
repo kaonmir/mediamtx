@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/bluenviron/mediamtx/internal/auth"
 	"github.com/bluenviron/mediamtx/internal/conf"
@@ -12,6 +13,8 @@ import (
 	"github.com/bluenviron/mediamtx/internal/externalcmd"
 	"github.com/bluenviron/mediamtx/internal/logger"
 	"github.com/bluenviron/mediamtx/internal/metrics"
+	"github.com/bluenviron/mediamtx/internal/gps"
+	"github.com/bluenviron/mediamtx/internal/overlay"
 	"github.com/bluenviron/mediamtx/internal/servers/hls"
 	"github.com/bluenviron/mediamtx/internal/stream"
 )
@@ -76,6 +79,8 @@ type pathManager struct {
 	externalCmdPool   *externalcmd.Pool
 	metrics           *metrics.Metrics
 	parent            pathManagerParent
+	overlayConfig     *overlay.Config
+	gpsManager        *gps.Manager
 
 	ctx       context.Context
 	ctxCancel func()
@@ -115,6 +120,26 @@ func (pm *pathManager) initialize() {
 	pm.chAPIPathsList = make(chan pathAPIPathsListReq)
 	pm.chAPIPathsGet = make(chan pathAPIPathsGetReq)
 
+	// Initialize GPS manager if overlay is enabled
+	if pm.overlayConfig != nil && pm.overlayConfig.Enabled {
+		gpsConfig := &gps.Config{
+			DatabaseHost:     pm.overlayConfig.DatabaseHost,
+			DatabasePort:     pm.overlayConfig.DatabasePort,
+			DatabaseUser:     pm.overlayConfig.DatabaseUser,
+			DatabasePassword: pm.overlayConfig.DatabasePassword,
+			DatabaseName:     pm.overlayConfig.DatabaseName,
+			UpdateInterval:   pm.overlayConfig.UpdateInterval,
+			MaxConnections:   pm.overlayConfig.MaxConnections,
+		}
+		gpsManager, err := gps.NewManager(gpsConfig)
+		if err != nil {
+			pm.Log(logger.Warn, "failed to initialize GPS manager: %v", err)
+		} else {
+			pm.gpsManager = gpsManager
+			pm.Log(logger.Info, "GPS manager initialized successfully")
+		}
+	}
+
 	for _, pathConf := range pm.pathConfs {
 		if pathConf.Regexp == nil {
 			pm.createPath(pathConf, pathConf.Name, nil)
@@ -138,6 +163,11 @@ func (pm *pathManager) close() {
 		pm.metrics.SetPathManager(nil)
 	}
 
+	// Close GPS manager if it exists
+	if pm.gpsManager != nil {
+		pm.gpsManager.Close()
+	}
+
 	pm.ctxCancel()
 	pm.wg.Wait()
 }
@@ -145,6 +175,20 @@ func (pm *pathManager) close() {
 // Log implements logger.Writer.
 func (pm *pathManager) Log(level logger.Level, format string, args ...interface{}) {
 	pm.parent.Log(level, format, args...)
+}
+
+// GetCurrentGPS implements gps.DataProvider interface.
+func (pm *pathManager) GetCurrentGPS() *gps.Data {
+	if pm.gpsManager == nil {
+		// Return default GPS data when no manager is available
+		return &gps.Data{
+			Timestamp: time.Now(),
+			Latitude:  0.0,
+			Longitude: 0.0,
+			Status:    "V", // Void (no data)
+		}
+	}
+	return pm.gpsManager.GetCurrentGPS()
 }
 
 func (pm *pathManager) run() {
@@ -442,6 +486,7 @@ func (pm *pathManager) createPath(
 		wg:                &pm.wg,
 		externalCmdPool:   pm.externalCmdPool,
 		parent:            pm,
+		overlayConfig:     pm.overlayConfig,
 	}
 	pa.initialize()
 

@@ -299,6 +299,21 @@ type Conf struct {
 	SRT        bool   `json:"srt"`
 	SRTAddress string `json:"srtAddress"`
 
+	// Overlay
+	OverlayEnabled           bool     `json:"overlayEnabled"`
+	OverlayDatabaseHost      string   `json:"overlayDatabaseHost"`
+	OverlayDatabasePort      int      `json:"overlayDatabasePort"`
+	OverlayDatabaseUser      string   `json:"overlayDatabaseUser"`
+	OverlayDatabasePassword  string   `json:"overlayDatabasePassword"`
+	OverlayDatabaseName      string   `json:"overlayDatabaseName"`
+	OverlayUpdateInterval    Duration `json:"overlayUpdateInterval"`
+	OverlayFontPath          string   `json:"overlayFontPath"`
+	OverlayFontSize          int      `json:"overlayFontSize"`
+	OverlayTextColor         string   `json:"overlayTextColor"`
+	OverlayBackgroundColor   string   `json:"overlayBackgroundColor"`
+	OverlayPosition          string   `json:"overlayPosition"`
+	OverlayMaxConnections    int      `json:"overlayMaxConnections"`
+
 	// Record (deprecated)
 	Record                *bool         `json:"record,omitempty"`                // deprecated
 	RecordPath            *string       `json:"recordPath,omitempty"`            // deprecated
@@ -428,6 +443,21 @@ func (conf *Conf) setDefaults() {
 	// SRT server
 	conf.SRT = true
 	conf.SRTAddress = ":8890"
+
+	// Overlay
+	conf.OverlayEnabled = false
+	conf.OverlayDatabaseHost = "localhost"
+	conf.OverlayDatabasePort = 5432
+	conf.OverlayDatabaseUser = "gpsuser"
+	conf.OverlayDatabasePassword = "gpspassword"
+	conf.OverlayDatabaseName = "gpsdb"
+	conf.OverlayUpdateInterval = 1 * Duration(time.Second)
+	conf.OverlayFontPath = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+	conf.OverlayFontSize = 24
+	conf.OverlayTextColor = "255,255,255"
+	conf.OverlayBackgroundColor = "0,0,0,128"
+	conf.OverlayPosition = "top-left"
+	conf.OverlayMaxConnections = 5
 
 	conf.PathDefaults.setDefaults()
 }

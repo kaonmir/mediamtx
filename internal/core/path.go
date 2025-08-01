@@ -13,8 +13,10 @@ import (
 	"github.com/bluenviron/mediamtx/internal/conf"
 	"github.com/bluenviron/mediamtx/internal/defs"
 	"github.com/bluenviron/mediamtx/internal/externalcmd"
+	"github.com/bluenviron/mediamtx/internal/gps"
 	"github.com/bluenviron/mediamtx/internal/hooks"
 	"github.com/bluenviron/mediamtx/internal/logger"
+	"github.com/bluenviron/mediamtx/internal/overlay"
 	"github.com/bluenviron/mediamtx/internal/recorder"
 	"github.com/bluenviron/mediamtx/internal/staticsources"
 	"github.com/bluenviron/mediamtx/internal/stream"
@@ -32,6 +34,7 @@ type pathParent interface {
 	pathNotReady(*path)
 	closePath(*path)
 	AddReader(req defs.PathAddReaderReq) (defs.Path, *stream.Stream, error)
+	GetCurrentGPS() *gps.Data
 }
 
 type pathOnDemandState int
@@ -78,6 +81,7 @@ type path struct {
 	wg                *sync.WaitGroup
 	externalCmdPool   *externalcmd.Pool
 	parent            pathParent
+	overlayConfig     *overlay.Config
 
 	ctx                            context.Context
 	ctxCancel                      func()
@@ -679,15 +683,34 @@ func (pa *path) onDemandPublisherStop(reason string) {
 }
 
 func (pa *path) setReady(desc *description.Session, allocateEncoder bool) error {
+	// Initialize overlay engine if enabled
+	var overlayEngine *overlay.Engine
+	if pa.overlayConfig != nil && pa.overlayConfig.Enabled {
+		var err error
+		overlayEngine, err = overlay.NewEngine(pa.overlayConfig, pa.parent)
+		if err != nil {
+			pa.Log(logger.Warn, "failed to initialize overlay engine: %v", err)
+			// Continue without overlay instead of failing completely
+			overlayEngine = nil
+		} else {
+			pa.Log(logger.Info, "overlay engine initialized successfully")
+		}
+	}
+
 	pa.stream = &stream.Stream{
 		WriteQueueSize:     pa.writeQueueSize,
 		RTPMaxPayloadSize:  pa.rtpMaxPayloadSize,
 		Desc:               desc,
 		GenerateRTPPackets: allocateEncoder,
 		Parent:             pa.source,
+		OverlayEngine:      overlayEngine,
+		ShipName:           pa.shipName,
 	}
 	err := pa.stream.Initialize()
 	if err != nil {
+		if overlayEngine != nil {
+			overlayEngine.Close()
+		}
 		return err
 	}
 

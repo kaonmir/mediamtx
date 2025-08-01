@@ -13,6 +13,7 @@ import (
 
 	"github.com/bluenviron/mediamtx/internal/counterdumper"
 	"github.com/bluenviron/mediamtx/internal/logger"
+	"github.com/bluenviron/mediamtx/internal/overlay"
 	"github.com/bluenviron/mediamtx/internal/unit"
 )
 
@@ -32,6 +33,8 @@ type Stream struct {
 	Desc               *description.Session
 	GenerateRTPPackets bool
 	Parent             logger.Writer
+	OverlayEngine      *overlay.Engine // Overlay engine for video processing
+	ShipName           string          // Ship name for overlay
 
 	bytesReceived    *uint64
 	bytesSent        *uint64
@@ -93,6 +96,9 @@ func (s *Stream) Close() {
 	}
 	if s.rtspsStream != nil {
 		s.rtspsStream.Close()
+	}
+	if s.OverlayEngine != nil {
+		s.OverlayEngine.Close()
 	}
 }
 
@@ -275,5 +281,31 @@ func (s *Stream) WriteRTPPacket(
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
+	// Apply overlay to video frames if overlay engine is enabled
+	if s.OverlayEngine != nil && s.OverlayEngine.IsEnabled() && isVideoFormat(forma) {
+		// TODO: For now, we skip actual frame processing as it requires
+		// decoding RTP packets to raw frames and re-encoding them.
+		// This would be a complex operation requiring:
+		// 1. RTP packet aggregation/defragmentation  
+		// 2. H.264/H.265 decoding to raw frames
+		// 3. OpenCV overlay application
+		// 4. Re-encoding to H.264/H.265
+		// 5. RTP packet fragmentation
+		//
+		// For Phase 1, we'll implement this as a placeholder.
+		// The actual implementation will require additional dependencies
+		// and significant performance optimization.
+	}
+
 	sf.writeRTPPacket(s, medi, pkt, ntp, pts)
+}
+
+// isVideoFormat checks if the format is a video format that supports overlay.
+func isVideoFormat(forma format.Format) bool {
+	switch forma.(type) {
+	case *format.H264, *format.H265:
+		return true
+	default:
+		return false
+	}
 }
