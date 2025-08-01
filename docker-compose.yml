@@ -1,16 +1,30 @@
 services:
-  mediamtx:
-    build:
-      context: .
-      dockerfile: docker/arm64.Dockerfile
-    container_name: mediamtx
+  # mediamtx:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/arm64.Dockerfile
+  #   container_name: mediamtx
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./recordings:/recordings
+  #     - ./apps:/apps:ro
+  #     - ./mediamtx.local.yaml:/mediamtx.yml:ro
+  #   env_file: .env
+  #   environment:
+  #     POSTGRES_HOST: postgres
+  #   network_mode: host
+  #   depends_on:
+  #     - postgres
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-gps
     restart: unless-stopped
+    env_file: .env
     volumes:
-      - ./recordings:/recordings
-      - ./apps:/apps:ro
-      - ./gps.txt:/gps.txt:ro
-      - ./mediamtx.local.yaml:/mediamtx.yml:ro
-    network_mode: host
+      - postgres_data:/var/lib/postgresql/data
+      - ./apps/gps-simulator/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
 
   gps-simulator:
     build:
@@ -20,6 +34,11 @@ services:
     restart: unless-stopped
     volumes:
       - ./apps/gps-simulator/gps.original.txt:/gps.original.txt:ro
-      - ./gps.txt:/gps.txt
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
     depends_on:
-      - mediamtx
+      - postgres
+
+volumes:
+  postgres_data:
