@@ -26,8 +26,6 @@ services:
     ports:
       - "5432:5432"
 
-
-
   gps-simulator:
     build:
       context: gps-simulator
